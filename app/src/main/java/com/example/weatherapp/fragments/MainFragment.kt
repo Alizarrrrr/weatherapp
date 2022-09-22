@@ -12,15 +12,18 @@ import android.widget.Toast
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.fragment.app.FragmentActivity
+import androidx.fragment.app.activityViewModels
 import com.android.volley.Request
 import com.android.volley.toolbox.StringRequest
 import com.android.volley.toolbox.Volley
+import com.example.weatherapp.MainViewModel
 import com.example.weatherapp.R
 import com.example.weatherapp.adapters.VpAdapter
 import com.example.weatherapp.adapters.WeatherModel
 import com.example.weatherapp.databinding.FragmentMainBinding
 import com.example.weatherapp.isPermissionGranted
 import com.google.android.material.tabs.TabLayoutMediator
+import com.squareup.picasso.Picasso
 import org.json.JSONObject
 
 const val API_KEY = "375225f1d82845a38fb82302221509"
@@ -36,6 +39,7 @@ class MainFragment : Fragment() {
     )
     private lateinit var pLauncher: ActivityResultLauncher<String>
     private lateinit var binding: FragmentMainBinding
+    private val model: MainViewModel by activityViewModels()
 
 
     override fun onCreateView(
@@ -50,6 +54,7 @@ class MainFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         checkPermission()
         init()
+        updateCurrentCard()
         requestWeatherData("Taganrog")
     }
 
@@ -59,6 +64,18 @@ class MainFragment : Fragment() {
         TabLayoutMediator(tabLayout, vp) { tab, pos ->
             tab.text = tList[pos]
         }.attach()
+    }
+
+    private fun updateCurrentCard() = with(binding){
+        model.liveDataCurrent.observe(viewLifecycleOwner){
+            val maxMinTemp = "${it.maxTemp}°С/${it.minTemp}°С"
+            tvData.text = it.time
+            Picasso.get().load("https:"+it.imageUrl).into(imWeather)
+            tvCiti.text = it.city
+            tvCurrentTemp.text = "${it.currentTemp}°С"
+            tvCondition.text = it.condition
+            tvMaxMin.text = maxMinTemp
+        }
     }
 
     private fun permissionListener() {
@@ -82,7 +99,7 @@ class MainFragment : Fragment() {
                 "&q=" +
                 city +
                 "&days=" +
-                "3" +
+                "10" +
                 "&aqi=no&alerts=no"
         val queue = Volley.newRequestQueue(context)
         val request = StringRequest(
@@ -130,6 +147,7 @@ class MainFragment : Fragment() {
             )
             list.add(item)
         }
+        model.liveDataList.value = list
         return list
     }
 
@@ -148,14 +166,8 @@ class MainFragment : Fragment() {
                 .getString("icon"),
             weatherItem.hours
         )
-        Log.d("MyLog", "City: ${item.city}")
-        Log.d("MyLog", "Time: ${item.time}")
-        Log.d("MyLog", "condition: ${item.condition}")
-        Log.d("MyLog", "temp: ${item.currentTemp}")
-        Log.d("MyLog", "url: ${item.imageUrl}")
-        Log.d("MyLog", "maxTemp: ${item.maxTemp}")
-        Log.d("MyLog", "minTemp: ${item.minTemp}")
-        Log.d("MyLog", "hours: ${item.hours}")
+        model.liveDataCurrent.value = item
+
 
     }
 
