@@ -43,7 +43,7 @@ class HoursFragment : Fragment() {
 
     private fun initRcView() = with(binding){
         rcView.layoutManager = LinearLayoutManager(activity)
-        adapter = WeatherAdapter()
+        adapter = WeatherAdapter(null)
         rcView.adapter = adapter
 
     }
