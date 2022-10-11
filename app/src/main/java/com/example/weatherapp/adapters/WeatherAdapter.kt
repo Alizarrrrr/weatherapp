@@ -1,8 +1,10 @@
 package com.example.weatherapp.adapters
 
+import android.os.Build
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.annotation.RequiresApi
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
@@ -25,9 +27,10 @@ class WeatherAdapter(val listener: Listener?) : ListAdapter<WeatherModel, Weathe
             itemTemp = item
             tvDate.text = item.time
             tvCondidtion.text = item.condition
+            tvTemp.text = "${item.currentTemp}°С"
 
-            tvTemp.text = item.currentTemp.ifEmpty { "${item.maxTemp}°С / ${item.minTemp}°С" }
-            Picasso.get().load("https:"+item.imageUrl).into(im)
+            //tvTemp.text = item.currentTemp.ifEmpty { "${item.maxTemp}°С / ${item.minTemp}°С" }
+            Picasso.get().load(item.imageUrl).into(im)
         }
     }
 
@@ -53,4 +56,5 @@ class WeatherAdapter(val listener: Listener?) : ListAdapter<WeatherModel, Weathe
     interface Listener{
         fun onClick(item: WeatherModel)
     }
+
 }

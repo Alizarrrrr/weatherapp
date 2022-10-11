@@ -37,7 +37,7 @@ class HoursFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         initRcView()
         model.liveDataCurrent.observe(viewLifecycleOwner){
-            adapter.submitList(getHoursList(it))
+        //    adapter.submitList(getHoursList(it))
         }
     }
 
@@ -54,6 +54,8 @@ class HoursFragment : Fragment() {
         for(i in 0 until hoursArray.length()){
             val item = WeatherModel(
                 wItem.city,
+                wItem.latitude,
+                wItem.longitude,
                 (hoursArray[i] as JSONObject).getString("time"),
                 (hoursArray[i] as JSONObject).getJSONObject("condition").getString("text"),
                 "${(hoursArray[i] as JSONObject).getString("temp_c")}°С",

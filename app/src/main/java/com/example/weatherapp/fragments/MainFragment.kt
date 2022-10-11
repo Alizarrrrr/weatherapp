@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.location.LocationManager
+import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.util.Log
@@ -16,6 +17,7 @@ import android.view.ViewGroup
 import android.widget.Toast
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.RequiresApi
 import androidx.core.app.ActivityCompat
 import androidx.fragment.app.FragmentActivity
 import androidx.fragment.app.activityViewModels
@@ -36,12 +38,18 @@ import com.google.android.gms.location.Priority
 import com.google.android.gms.tasks.CancellationTokenSource
 import com.google.android.material.tabs.TabLayoutMediator
 import com.squareup.picasso.Picasso
+import org.json.JSONArray
 import org.json.JSONObject
+import java.time.Instant
+import java.time.format.DateTimeFormatter
+import java.util.*
+import kotlin.collections.ArrayList
 
-const val API_KEY = "375225f1d82845a38fb82302221509"
+const val API_KEY = "3a87e67803b9e72b62dfcf7fe3975409"
+//const val API_KEY = "375225f1d82845a38fb82302221509"
 
 class MainFragment : Fragment() {
-    private lateinit var fLocationClient : FusedLocationProviderClient
+    private lateinit var fLocationClient: FusedLocationProviderClient
     private val fList = listOf(
         HoursFragment.newInstance(),
         DaysFragment.newInstance()
@@ -53,6 +61,9 @@ class MainFragment : Fragment() {
     private lateinit var pLauncher: ActivityResultLauncher<String>
     private lateinit var binding: FragmentMainBinding
     private val model: MainViewModel by activityViewModels()
+    private val language: String = "en"
+    private var currentLatitude: String = ""
+    private val currentLongitude: String = ""
 
 
     override fun onCreateView(
@@ -88,20 +99,25 @@ class MainFragment : Fragment() {
             checkLocation()
         }
         ibSearch.setOnClickListener {
-            DialogManager.searchByNameDialog(requireContext(), object : DialogManager.Listener{
+            DialogManager.searchByNameDialog(requireContext(), object : DialogManager.Listener {
                 override fun onClick(name: String?) {
-                    name?.let { it1 -> requestWeatherData(it1) }
+                    name?.let { it1 ->
+                        pCoordinatesFromCity(it1)
+                        searchCity = true
+                        city = it1
+                    }
+                    //requestWeatherData(it1) }
                 }
             })
         }
     }
 
-    private fun checkLocation(){
-        if(isLocationEnabled()){
+    private fun checkLocation() {
+        if (isLocationEnabled()) {
             getLocation()
         } else {
-            DialogManager.locationSettingsDialog(requireContext(), object : DialogManager.Listener{
-                override fun onClick(name:String?) {
+            DialogManager.locationSettingsDialog(requireContext(), object : DialogManager.Listener {
+                override fun onClick(name: String?) {
                     startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS))
                 }
 
@@ -109,12 +125,12 @@ class MainFragment : Fragment() {
         }
     }
 
-    private fun isLocationEnabled(): Boolean{
+    private fun isLocationEnabled(): Boolean {
         val lm = activity?.getSystemService(Context.LOCATION_SERVICE) as LocationManager
         return lm.isProviderEnabled(LocationManager.GPS_PROVIDER)
     }
 
-    private fun getLocation(){
+    private fun getLocation() {
         val ct = CancellationTokenSource()
 
         if (ActivityCompat.checkSelfPermission(
@@ -131,21 +147,24 @@ class MainFragment : Fragment() {
         fLocationClient
             .getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, ct.token)
             .addOnCompleteListener {
-                requestWeatherData("${it.result.latitude},${it.result.longitude}")
+                requestWeatherData(it.result.latitude.toString() , it.result.longitude.toString())
+
             }
     }
 
-    private fun updateCurrentCard() = with(binding){
-        model.liveDataCurrent.observe(viewLifecycleOwner){
+    private fun updateCurrentCard() = with(binding) {
+        model.liveDataCurrent.observe(viewLifecycleOwner) {
             val maxMinTemp = "${it.maxTemp}°С/${it.minTemp}°С"
             tvData.text = it.time
-            Picasso.get().load("https:"+it.imageUrl).into(imWeather)
+            Picasso.get().load(it.imageUrl).into(imWeather)
             tvCiti.text = it.city
-            tvCurrentTemp.text = if (it.currentTemp.isEmpty()) { maxMinTemp } else "${it.currentTemp}°С"
+            tvCurrentTemp.text = if (it.currentTemp.isEmpty()) {
+                maxMinTemp
+            } else "${it.currentTemp}°С"
 
-                //"${it.currentTemp}°С"
+            //"${it.currentTemp}°С"
             tvCondition.text = it.condition
-            tvMaxMin.text = if(it.currentTemp.isEmpty()) "" else maxMinTemp
+            tvMaxMin.text = if (it.currentTemp.isEmpty()) "" else maxMinTemp
         }
     }
 
@@ -164,35 +183,184 @@ class MainFragment : Fragment() {
         }
     }
 
-    private fun requestWeatherData(city: String) {
-        val url = "https://api.weatherapi.com/v1/forecast.json?key=" +
+    private fun checkCityCoordinate(latitude: String, longitude: String) {
+        if (searchCity) {
+            pCoordinatesFromCity(city)
+        } else {
+            lat = latitude
+            lon = longitude
+            pCityFromCoordinates(lat, lon)
+
+        }
+    }
+
+    private fun dateConverter(dateUTC: String): String {
+        val shiftTime = System.currentTimeMillis() - Calendar.getInstance().timeInMillis
+        return DateTimeFormatter.ISO_INSTANT
+            .format(Instant.ofEpochSecond(dateUTC.toLong() + shiftTime/1000)).toString()
+    }
+
+    private fun requestWeatherData(latitude: String, longitude: String) {
+        checkCityCoordinate(latitude, longitude)
+        val urlCurrent = "https://api.openweathermap.org/data/2.5/weather" +
+                "?lat=" +
+                latitude +
+                "&lon=" +
+                longitude +
+                "&appid=" +
                 API_KEY +
-                "&q=" +
-                city +
-                "&days=" +
-                "10" +
-                "&aqi=no&alerts=no"
+                "&units=metric" +
+                "&lang=" +
+                language
+
+        val urlForecast = "https://api.openweathermap.org/data/2.5/forecast" +
+                "?lat=" +
+                latitude +
+                "&lon=" +
+                longitude +
+                "&appid=" +
+                API_KEY +
+                "&units=metric" +
+                "&lang=" +
+                language
+
         val queue = Volley.newRequestQueue(context)
-        val request = StringRequest(
+        val requestCurrent = StringRequest(
             Request.Method.GET,
-            url,
+            urlCurrent,
+            { result ->
+                parseCurrentData(result)
+
+            },
+            { error ->
+                Log.d("MyLog", "Error: $error Current")
+            }
+        )
+        val requestForecast = StringRequest(
+            Request.Method.GET,
+            urlForecast,
             { result ->
                 parseWeatherData(result)
 
             },
             { error ->
-                Log.d("MyLog", "Error: $error")
+                Log.d("MyLog", "Error: $error Forecast")
             }
         )
-        queue.add(request)
+
+        queue.add(requestCurrent)
+        queue.add(requestForecast)
+    }
+
+    private fun parseWeatherCurrentData(mainObject: JSONObject) {
+        val item = WeatherModel(
+            city,
+            lat,
+            lon,
+            dateConverter(mainObject.getString("dt")),
+            (mainObject.getJSONArray("weather")[0] as JSONObject).getString("description"),
+            mainObject.getJSONObject("main").getString("temp"),
+            mainObject.getJSONObject("main").getString("temp_max"),
+            mainObject.getJSONObject("main").getString("temp_min"),
+            "http://openweathermap.org/img/wn/${
+                (mainObject.getJSONArray("weather")[0] as JSONObject)
+                    .getString("icon")
+            }.png",
+            ""
+        )
+        model.liveDataCurrent.value = item
+    }
+
+    private fun parseWeatherForecastData(mainObject: JSONObject): List<WeatherModel> {
+        val list = ArrayList<WeatherModel>()
+        val daysArray = mainObject.getJSONArray("list")
+        for (i in 0 until daysArray.length()) {
+            val day = daysArray[i] as JSONObject
+            val item = WeatherModel(
+                city,
+                lat,
+                lon,
+                dateConverter(day.getString("dt")),
+                (day.getJSONArray("weather")[0] as JSONObject).getString("description"),
+                day.getJSONObject("main").getString("temp"),
+                day.getJSONObject("main").getString("temp_max"),
+                day.getJSONObject("main").getString("temp_min"),
+                "http://openweathermap.org/img/wn/${
+                    (day.getJSONArray("weather")[0] as JSONObject)
+                        .getString("icon")
+                }.png",
+                day.getString("dt_txt")
+
+                )
+            list.add(item)
+        }
+
+        model.liveDataList.value = list
+        return list
+
+    }
+
+    private fun pCityFromCoordinates(latitude: String, longitude: String): String {
+        val url = "http://api.openweathermap.org/geo/1.0/reverse" +
+                "?lat=" +
+                latitude +
+                "&lon=" +
+                longitude +
+                "&limit=5&appid=" +
+                API_KEY
+        val queue = Volley.newRequestQueue(context)
+        val requestCity = StringRequest(
+            Request.Method.GET,
+            url,
+            { result ->
+                val mainObject = JSONArray(result)[0] as JSONObject
+                city = mainObject.getJSONObject("local_names").getString(language)
+
+            },
+            { error ->
+                Log.d("MyLog", "Error: $error Forecast")
+            }
+        )
+        queue.add(requestCity)
+        return city
+    }
+
+    private fun pCoordinatesFromCity(cCity: String): Pair<String, String> {
+        val url = "http://api.openweathermap.org/geo/1.0/direct" +
+                "?q=" +
+                cCity +
+                "&limit=5&appid=" +
+                API_KEY
+        val queue = Volley.newRequestQueue(context)
+        val requestCoordinates = StringRequest(
+            Request.Method.GET,
+            url,
+            { result ->
+                val mainObject = JSONArray(result)[0] as JSONObject
+                lat = mainObject.getString("lat")
+                lon = mainObject.getString("lon")
+
+            },
+            { error ->
+                Log.d("MyLog", "Error: $error Forecast")
+            }
+        )
+        queue.add(requestCoordinates)
+        return Pair(lat, lon)
+
     }
 
     private fun parseWeatherData(result: String) {
         val mainObject = JSONObject(result)
-        val list = parseDays(mainObject)
-        parseCurrentData(mainObject, list[0])
+        parseWeatherForecastData(mainObject)
+        //val list = parseDays(mainObject)
+        //parseWeatherCurrentData(mainObject, list[0])
     }
-
+    private fun parseCurrentData(result: String){
+        val mainObject = JSONObject(result)
+        parseWeatherCurrentData(mainObject)
+    }
+/*
     private fun parseDays(mainObject: JSONObject): List<WeatherModel> {
         val list = ArrayList<WeatherModel>()
         val daysArray = mainObject.getJSONObject("forecast")
@@ -222,6 +390,8 @@ class MainFragment : Fragment() {
         return list
     }
 
+ */
+/*
     private fun parseCurrentData(mainObject: JSONObject, weatherItem: WeatherModel) {
         val item = WeatherModel(
             mainObject.getJSONObject("location").getString("name"),
@@ -242,10 +412,16 @@ class MainFragment : Fragment() {
 
     }
 
+ */
+
 
     companion object {
         @JvmStatic
         fun newInstance() = MainFragment()
+        var city: String = ""
+        var searchCity: Boolean = false
+        var lat: String = ""
+        var lon: String = ""
 
     }
 

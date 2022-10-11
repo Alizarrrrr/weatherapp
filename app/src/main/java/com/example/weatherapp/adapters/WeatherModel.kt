@@ -4,6 +4,8 @@ import java.util.concurrent.locks.Condition
 
 data class WeatherModel(
     val city: String,
+    val latitude: String,
+    val longitude: String,
     val time: String,
     val condition: String,
     val currentTemp: String,
