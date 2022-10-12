@@ -44,14 +44,14 @@
                 android:layout_marginTop="8dp"
                 android:fontFamily="@font/aubrey"
                 android:text="20/09/2022 13:00"
-                android:textSize="12sp"
+                android:textSize="14sp"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent" />
 
             <ImageView
                 android:id="@+id/imWeather"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
+                android:layout_width="67dp"
+                android:layout_height="67dp"
                 android:src="@drawable/ic_launcher_foreground"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintTop_toTopOf="parent" />
@@ -60,6 +60,7 @@
                 android:id="@+id/tvCiti"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_marginTop="-10dp"
                 android:fontFamily="@font/aubrey"
                 android:text="Madrid"
                 android:textColor="@color/white"
@@ -133,6 +134,7 @@
         android:layout_marginTop="3dp"
         android:backgroundTint="@color/card_blue_bg"
         app:layout_constraintEnd_toEndOf="@+id/cardView"
+        app:layout_constraintHorizontal_bias="0.0"
         app:layout_constraintStart_toStartOf="@+id/cardView"
         app:layout_constraintTop_toBottomOf="@+id/cardView">
 

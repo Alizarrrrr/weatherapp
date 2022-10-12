@@ -62,6 +62,7 @@ class HoursFragment : Fragment() {
                 "",
                 "",
                 (hoursArray[i] as JSONObject).getJSONObject("condition").getString("icon"),
+                "",
                 ""
             )
             list.add(item)

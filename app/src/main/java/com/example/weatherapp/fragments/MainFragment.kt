@@ -147,7 +147,7 @@ class MainFragment : Fragment() {
         fLocationClient
             .getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, ct.token)
             .addOnCompleteListener {
-                requestWeatherData(it.result.latitude.toString() , it.result.longitude.toString())
+                requestWeatherData(it.result.latitude.toString(), it.result.longitude.toString())
 
             }
     }
@@ -194,10 +194,11 @@ class MainFragment : Fragment() {
         }
     }
 
-    private fun dateConverter(dateUTC: String): String {
-        val shiftTime = System.currentTimeMillis() - Calendar.getInstance().timeInMillis
-        return DateTimeFormatter.ISO_INSTANT
-            .format(Instant.ofEpochSecond(dateUTC.toLong() + shiftTime/1000)).toString()
+    private fun dateConverter(dateUTC: String, timeZone: String): String {
+        val sdf = java.text.SimpleDateFormat("dd-MM-yyyy HH:mm")
+        val dateValue = (dateUTC.toInt() + timeZone.toInt()).toLong() * 1000
+        val dateUTCShift = java.util.Date(dateValue)
+        return sdf.format(dateUTCShift)
     }
 
     private fun requestWeatherData(latitude: String, longitude: String) {
@@ -257,16 +258,22 @@ class MainFragment : Fragment() {
             city,
             lat,
             lon,
-            dateConverter(mainObject.getString("dt")),
+            dateConverter(mainObject.getString("dt"), mainObject.getString("timezone")),
             (mainObject.getJSONArray("weather")[0] as JSONObject).getString("description"),
-            mainObject.getJSONObject("main").getString("temp"),
-            mainObject.getJSONObject("main").getString("temp_max"),
-            mainObject.getJSONObject("main").getString("temp_min"),
+            //mainObject.getJSONObject("main").getString("temp"),
+            ((Math.round(
+                ((mainObject.getJSONObject("main").getString("temp")).toFloat()) * 10
+            )).toFloat() / 10).toString(),
+            (Math.round((mainObject.getJSONObject("main").getString("temp_max")).toFloat() * 10)
+                .toFloat() / 10).toString(),
+            (Math.round((mainObject.getJSONObject("main").getString("temp_min")).toFloat() * 10)
+                .toFloat() / 10).toString(),
             "http://openweathermap.org/img/wn/${
                 (mainObject.getJSONArray("weather")[0] as JSONObject)
                     .getString("icon")
             }.png",
-            ""
+            "",
+            mainObject.getString("timezone")
         )
         model.liveDataCurrent.value = item
     }
@@ -280,18 +287,25 @@ class MainFragment : Fragment() {
                 city,
                 lat,
                 lon,
-                dateConverter(day.getString("dt")),
+                dateConverter(
+                    day.getString("dt"),
+                    mainObject.getJSONObject("city").getString("timezone")
+                ),
                 (day.getJSONArray("weather")[0] as JSONObject).getString("description"),
-                day.getJSONObject("main").getString("temp"),
-                day.getJSONObject("main").getString("temp_max"),
-                day.getJSONObject("main").getString("temp_min"),
+                (Math.round((day.getJSONObject("main").getString("temp")).toFloat() * 10)
+                    .toFloat() / 10).toString(),
+                (Math.round((day.getJSONObject("main").getString("temp_max")).toFloat() * 10)
+                    .toFloat() / 10).toString(),
+                (Math.round((day.getJSONObject("main").getString("temp_min")).toFloat() * 10)
+                    .toFloat() / 10).toString(),
                 "http://openweathermap.org/img/wn/${
                     (day.getJSONArray("weather")[0] as JSONObject)
                         .getString("icon")
                 }.png",
-                day.getString("dt_txt")
+                day.getString("dt_txt"),
+                mainObject.getJSONObject("city").getString("timezone")
 
-                )
+            )
             list.add(item)
         }
 
@@ -356,7 +370,8 @@ class MainFragment : Fragment() {
         //val list = parseDays(mainObject)
         //parseWeatherCurrentData(mainObject, list[0])
     }
-    private fun parseCurrentData(result: String){
+
+    private fun parseCurrentData(result: String) {
         val mainObject = JSONObject(result)
         parseWeatherCurrentData(mainObject)
     }
