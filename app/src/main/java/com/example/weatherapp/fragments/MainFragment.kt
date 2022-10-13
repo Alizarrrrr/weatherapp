@@ -38,6 +38,7 @@ import com.google.android.gms.location.Priority
 import com.google.android.gms.tasks.CancellationTokenSource
 import com.google.android.material.tabs.TabLayoutMediator
 import com.squareup.picasso.Picasso
+import kotlinx.coroutines.coroutineScope
 import org.json.JSONArray
 import org.json.JSONObject
 import java.time.Instant
@@ -96,6 +97,7 @@ class MainFragment : Fragment() {
         }.attach()
         ibSync.setOnClickListener {
             tabLayout.selectTab(tabLayout.getTabAt(0))
+            searchCity = false
             checkLocation()
         }
         ibSearch.setOnClickListener {
@@ -104,7 +106,11 @@ class MainFragment : Fragment() {
                     name?.let { it1 ->
                         pCoordinatesFromCity(it1)
                         searchCity = true
-                        city = it1
+                        citytmp = it1
+                        checkCityCoordinate(lat, lon)
+                        //pCoordinatesFromCity(citytmp)
+
+                        requestWeatherData(lat, lon)
                     }
                     //requestWeatherData(it1) }
                 }
@@ -185,10 +191,11 @@ class MainFragment : Fragment() {
 
     private fun checkCityCoordinate(latitude: String, longitude: String) {
         if (searchCity) {
-            pCoordinatesFromCity(city)
+            pCoordinatesFromCity(citytmp)
         } else {
             lat = latitude
             lon = longitude
+
             pCityFromCoordinates(lat, lon)
 
         }
@@ -203,6 +210,7 @@ class MainFragment : Fragment() {
 
     private fun requestWeatherData(latitude: String, longitude: String) {
         checkCityCoordinate(latitude, longitude)
+
         val urlCurrent = "https://api.openweathermap.org/data/2.5/weather" +
                 "?lat=" +
                 latitude +
@@ -224,6 +232,8 @@ class MainFragment : Fragment() {
                 "&units=metric" +
                 "&lang=" +
                 language
+
+
 
         val queue = Volley.newRequestQueue(context)
         val requestCurrent = StringRequest(
@@ -252,6 +262,10 @@ class MainFragment : Fragment() {
         queue.add(requestCurrent)
         queue.add(requestForecast)
     }
+
+
+
+
 
     private fun parseWeatherCurrentData(mainObject: JSONObject) {
         val item = WeatherModel(
@@ -339,7 +353,7 @@ class MainFragment : Fragment() {
         return city
     }
 
-    private fun pCoordinatesFromCity(cCity: String): Pair<String, String> {
+    private fun pCoordinatesFromCity(cCity: String): Triple<String, String, String> {
         val url = "http://api.openweathermap.org/geo/1.0/direct" +
                 "?q=" +
                 cCity +
@@ -350,9 +364,12 @@ class MainFragment : Fragment() {
             Request.Method.GET,
             url,
             { result ->
+
                 val mainObject = JSONArray(result)[0] as JSONObject
+
                 lat = mainObject.getString("lat")
                 lon = mainObject.getString("lon")
+                city = mainObject.getString("name")
 
             },
             { error ->
@@ -360,7 +377,7 @@ class MainFragment : Fragment() {
             }
         )
         queue.add(requestCoordinates)
-        return Pair(lat, lon)
+        return Triple(lat, lon, city)
 
     }
 
@@ -434,6 +451,7 @@ class MainFragment : Fragment() {
         @JvmStatic
         fun newInstance() = MainFragment()
         var city: String = ""
+        var citytmp: String = ""
         var searchCity: Boolean = false
         var lat: String = ""
         var lon: String = ""
